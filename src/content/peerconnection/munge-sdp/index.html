@@ -23,7 +23,7 @@
     <title>Munge SDP</title>
 
     <link rel="icon" sizes="192x192" href="../../../images/webrtc-icon-192x192.png">
-    <link href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="../../../css/main.css">
     <link rel="stylesheet" href="css/main.css"/>
 
@@ -36,18 +36,6 @@
     <h1><a href="//webrtc.github.io/samples/" title="WebRTC samples homepage">WebRTC samples</a> <span>Munge SDP</span>
     </h1>
 
-    <div id="selectSource" class="hidden">
-        <div id="select">Select an audio &amp; video source, then click <strong>Get media</strong>:</div>
-        <div class="source">
-            <label for="audioSrc">Audio source:</label>
-            <select id="audioSrc"></select>
-        </div>
-        <div class="source">
-            <label for="videoSrc">Video source:</label>
-            <select id="videoSrc"></select>
-        </div>
-    </div>
-
     <div id="buttons">
         <button id="getMedia">Get media</button>
         <button id="createPeerConnection" disabled>Create peer connection</button>
@@ -57,6 +45,10 @@
         <button id="setAnswer" disabled>Set answer</button>
         <button id="hangup" disabled>Hang up</button>
     </div>
+    <p><b>Note:</b> SDP "munging", i.e. modifying the SDP between <i>createOffer</i>/<i>createAnswer</i> and <i>setLocalDescription</i>
+      is a nonstandard feature which may not work as expected. While some browsers support some modifications,
+      <a href="https://w3c.github.io/webrtc-pc/#dom-peerconnection-setlocaldescription">the W3C standard</a> forbids it.</p>
+    <p id="munge-error"></p>
 
     <div id="preview">
         <div id="local">
@@ -77,7 +69,7 @@
 
     <p>View the console to see logging.</p>
 
-    <p>The <code>RTCPeerConnection</code> objects <code>localPeerConnection</code> and <code>remotePeerConnection</code>
+    <p>The <code>RTCPeerConnection</code> objects <code>pc1</code> and <code>pc2</code>
         are in global scope, so you can inspect them in the console as well.</p>
 
     <p>For more information about RTCPeerConnection, see <a

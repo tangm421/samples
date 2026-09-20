@@ -23,7 +23,7 @@
     <title>MediaStream Recording</title>
 
     <link rel="icon" sizes="192x192" href="../../../images/webrtc-icon-192x192.png">
-    <link href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="../../../css/main.css">
     <link rel="stylesheet" href="css/main.css">
 
@@ -44,10 +44,12 @@
     <video id="recorded" playsinline loop></video>
 
     <div>
-        <button id="start">Start camera</button>
+        <button id="start-gum">Start camera</button>
+        <button id="start-gdm">Start screenshare</button>
         <button id="record" disabled>Start Recording</button>
         <button id="play" disabled>Play</button>
         <button id="download" disabled>Download</button>
+        <label for="upload" class="file-upload">upload locally</label><input id="upload" type="file"/>
     </div>
 
     <div>

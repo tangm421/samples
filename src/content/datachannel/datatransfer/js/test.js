@@ -5,22 +5,21 @@
  *  that can be found in the LICENSE file in the root of the source
  *  tree.
  */
-/* eslint-env node, mocha */
+/* eslint-env node */
 
 'use strict';
 const webdriver = require('selenium-webdriver');
 const seleniumHelpers = require('../../../../../test/webdriver');
-const {expect} = require('chai');
 
 let driver;
 const path = '/src/content/datachannel/datatransfer/index.html';
 const url = `${process.env.BASEURL ? process.env.BASEURL : ('file://' + process.cwd())}${path}`;
 
 describe('datachannel datatransfer', () => {
-  before(() => {
-    driver = seleniumHelpers.buildDriver();
+  beforeAll(async () => {
+    driver = await seleniumHelpers.buildDriver();
   });
-  after(() => {
+  afterAll(() => {
     return driver.quit();
   });
 
@@ -39,19 +38,19 @@ describe('datachannel datatransfer', () => {
 
     await Promise.all([
       driver.wait(() => driver.executeScript(() => {
-        return localConnection && localConnection.connectionState === 'connected'; // eslint-disable-line no-undef
+        return pc1 && pc1.connectionState === 'connected'; // eslint-disable-line no-undef
       })),
       await driver.wait(() => driver.executeScript(() => {
-        return remoteConnection && remoteConnection.connectionState === 'connected'; // eslint-disable-line no-undef
+        return pc2 && pc2.connectionState === 'connected'; // eslint-disable-line no-undef
       })),
     ]);
 
     // the remote connection gets closed when it is done.
     await driver.wait(() => driver.executeScript(() => {
-      return remoteConnection === null; // eslint-disable-line no-undef
+      return pc2 === null; // eslint-disable-line no-undef
     }));
 
     const transferred = await driver.findElement(webdriver.By.id('receiveProgress')).getAttribute('value');
-    expect(transferred >>> 0).to.equal(megsToSend * 1024 * 1024);
+    expect(transferred >>> 0).toBe(megsToSend * 1024 * 1024);
   });
 });

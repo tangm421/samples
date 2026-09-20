@@ -40,8 +40,8 @@ const remoteVideoStatsDiv = document.querySelector('div#remoteVideo div');
 
 const updateStats = document.querySelector('input#updateStats');
 
-let localPeerConnection;
-let remotePeerConnection;
+let pc1;
+let pc2;
 let localStream;
 let bytesPrev;
 let timestampPrev;
@@ -54,22 +54,22 @@ function main() {
 
 function hangup() {
   console.log('Ending call');
-  localPeerConnection.close();
-  remotePeerConnection.close();
+  pc1.close();
+  pc2.close();
 
   // query stats one last time.
   Promise
       .all([
-        remotePeerConnection
-            .getStats(null)
+        pc2
+            .getStats()
             .then(showRemoteStats, err => console.log(err)),
-        localPeerConnection
-            .getStats(null)
+        pc1
+            .getStats()
             .then(showLocalStats, err => console.log(err))
       ])
       .then(() => {
-        localPeerConnection = null;
-        remotePeerConnection = null;
+        pc1 = null;
+        pc2 = null;
       });
 
   localStream.getTracks().forEach(track => track.stop());
@@ -149,40 +149,40 @@ function createPeerConnection() {
 
   bytesPrev = 0;
   timestampPrev = 0;
-  localPeerConnection = new RTCPeerConnection(null);
-  remotePeerConnection = new RTCPeerConnection(null);
-  localStream.getTracks().forEach(track => localPeerConnection.addTrack(track, localStream));
-  console.log('localPeerConnection creating offer');
-  localPeerConnection.onnegotiationneeded = () => console.log('Negotiation needed - localPeerConnection');
-  remotePeerConnection.onnegotiationneeded = () => console.log('Negotiation needed - remotePeerConnection');
-  localPeerConnection.onicecandidate = e => {
-    console.log('Candidate localPeerConnection');
-    remotePeerConnection
+  pc1 = new RTCPeerConnection(null);
+  pc2 = new RTCPeerConnection(null);
+  localStream.getTracks().forEach(track => pc1.addTrack(track, localStream));
+  console.log('pc1 creating offer');
+  pc1.onnegotiationneeded = () => console.log('Negotiation needed - pc1');
+  pc2.onnegotiationneeded = () => console.log('Negotiation needed - pc2');
+  pc1.onicecandidate = e => {
+    console.log('Candidate pc1');
+    pc2
         .addIceCandidate(e.candidate)
         .then(onAddIceCandidateSuccess, onAddIceCandidateError);
   };
-  remotePeerConnection.onicecandidate = e => {
-    console.log('Candidate remotePeerConnection');
-    localPeerConnection
+  pc2.onicecandidate = e => {
+    console.log('Candidate pc2');
+    pc1
         .addIceCandidate(e.candidate)
         .then(onAddIceCandidateSuccess, onAddIceCandidateError);
   };
-  remotePeerConnection.ontrack = e => {
+  pc2.ontrack = e => {
     if (remoteVideo.srcObject !== e.streams[0]) {
-      console.log('remotePeerConnection got stream');
+      console.log('pc2 got stream');
       remoteVideo.srcObject = e.streams[0];
     }
   };
-  localPeerConnection.createOffer().then(
+  pc1.createOffer().then(
       desc => {
-        console.log('localPeerConnection offering');
-        localPeerConnection.setLocalDescription(desc);
-        remotePeerConnection.setRemoteDescription(desc);
-        remotePeerConnection.createAnswer().then(
+        console.log('pc1 offering');
+        pc1.setLocalDescription(desc);
+        pc2.setRemoteDescription(desc);
+        pc2.createAnswer().then(
             desc2 => {
-              console.log('remotePeerConnection answering');
-              remotePeerConnection.setLocalDescription(desc2);
-              localPeerConnection.setRemoteDescription(desc2);
+              console.log('pc2 answering');
+              pc2.setLocalDescription(desc2);
+              pc1.setRemoteDescription(desc2);
             },
             err => console.log(err)
         );
@@ -265,12 +265,12 @@ setInterval(() => {
   if (!updateStats.checked) {
     return;
   }
-  if (localPeerConnection && remotePeerConnection) {
-    remotePeerConnection
-        .getStats(null)
+  if (pc1 && pc2) {
+    pc2
+        .getStats()
         .then(showRemoteStats, err => console.log(err));
-    localPeerConnection
-        .getStats(null)
+    pc1
+        .getStats()
         .then(showLocalStats, err => console.log(err));
   } else {
     console.log('Not connected yet');
@@ -292,19 +292,18 @@ setInterval(() => {
 // might be named toString?
 function dumpStats(results) {
   let statsString = '';
-  results.forEach(res => {
+  results.forEach(report => {
     statsString += '<h3>Report type=';
-    statsString += res.type;
+    statsString += report.type;
     statsString += '</h3>\n';
-    statsString += `id ${res.id}<br>`;
-    statsString += `time ${res.timestamp}<br>`;
-    Object.keys(res).forEach(k => {
-      if (k !== 'timestamp' && k !== 'type' && k !== 'id') {
-        if (typeof res[k] === 'object') {
-          statsString += `${k}: ${JSON.stringify(res[k])}<br>`;
-        } else {
-          statsString += `${k}: ${res[k]}<br>`;
-        }
+    statsString += `id: ${report.id}<br>`;
+    statsString += `timestamp: ${report.timestamp}<br>`;
+    Object.keys(report).forEach(key => {
+      if (['id', 'timestamp', 'type'].includes(key)) return;
+      if (typeof report[key] === 'object') {
+        statsString += `${key}: ${JSON.stringify(report[key])}<br>`;
+      } else {
+        statsString += `${key}: ${report[key]}<br>`;
       }
     });
   });

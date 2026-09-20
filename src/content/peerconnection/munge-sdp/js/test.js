@@ -5,7 +5,7 @@
  *  that can be found in the LICENSE file in the root of the source
  *  tree.
  */
-/* eslint-env node, mocha */
+/* eslint-env node */
 
 'use strict';
 const webdriver = require('selenium-webdriver');
@@ -16,10 +16,10 @@ const path = '/src/content/peerconnection/munge-sdp/index.html';
 const url = `${process.env.BASEURL ? process.env.BASEURL : ('file://' + process.cwd())}${path}`;
 
 describe('peerconnection sdp munging', () => {
-  before(() => {
-    driver = seleniumHelpers.buildDriver();
+  beforeAll(async () => {
+    driver = await seleniumHelpers.buildDriver();
   });
-  after(() => {
+  afterAll(() => {
     return driver.quit();
   });
 
@@ -50,10 +50,10 @@ describe('peerconnection sdp munging', () => {
 
     await Promise.all([
       await driver.wait(() => driver.executeScript(() => {
-        return localPeerConnection && localPeerConnection.connectionState === 'connected'; // eslint-disable-line no-undef
+        return pc1 && pc1.connectionState === 'connected'; // eslint-disable-line no-undef
       })),
       await driver.wait(() => driver.executeScript(() => {
-        return remotePeerConnection && remotePeerConnection.connectionState === 'connected'; // eslint-disable-line no-undef
+        return pc2 && pc2.connectionState === 'connected'; // eslint-disable-line no-undef
       })),
     ]);
   });

@@ -17,13 +17,14 @@
     <meta itemprop="name" content="WebRTC code samples">
     <meta name="mobile-web-app-capable" content="yes">
     <meta id="theme-color" name="theme-color" content="#ffffff">
+    <meta http-equiv="origin-trial" content="AiRaOP7wcP4PcMXGdfd10rf8FsFKPw55DhMgQUHu7HM31WrUfhqTeZOcFwYkCF4w66uzd/oX8gS2+oDMHQTZhA4AAABYeyJvcmlnaW4iOiJodHRwczovL3dlYnJ0Yy5naXRodWIuaW86NDQzIiwiZmVhdHVyZSI6IldlYlJ0Y1NjdHBTbmFwIiwiZXhwaXJ5IjoxNzk0ODczNjAwfQ==">
 
     <base target="_blank">
 
     <title>Transmit text</title>
 
     <link rel="icon" sizes="192x192" href="../../../images/webrtc-icon-192x192.png">
-    <link href="//fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="../../../css/main.css">
     <link rel="stylesheet" href="css/main.css"/>
 
@@ -56,12 +57,40 @@
 
     <p>View the console to see logging.</p>
 
-    <p>The <code>RTCPeerConnection</code> objects <code>localConnection</code> and <code>remoteConnection</code> are in
+    <p>The <code>RTCPeerConnection</code> objects <code>pc1</code> and <code>pc2</code> are in
         global scope, so you can inspect them in the console as well.</p>
 
     <p>For more information about RTCDataChannel, see <a
             href="http://www.html5rocks.com/en/tutorials/webrtc/basics/#toc-rtcdatachannel"
             title="RTCDataChannel section of HTML5 Rocks article about WebRTC">Getting Started With WebRTC</a>.</p>
+
+    <div id="snap" class="infobox">
+        <h2>SNAP origin trial</h2>
+        <p>From Chrome 151 to Chrome 156 until November 17th there is a SNAP origin trial which you can register
+            for at <a
+                href="https://developer.chrome.com/origintrials/#/view_trial/3793719736106221569"
+                title="SNAP origin trial registration">the Chrome origin trials page</a>.
+                This sample uses an origin trial token added in
+                <a href="https://github.com/webrtc/samples/pull/1735"
+                           title="SNAP origin trial usage">webrtc/samples#1735</a>
+                to experimentally enable SNAP.
+        </p>
+    </div>
+
+    <div id="sctpLogging" class="infobox">
+        <h2>Inspecting SCTP traffic</h2>
+        <p>To inspect the SCTP traffic, start Chrome with logging enabled:</p>
+        <pre><code>chrome --enable-logging --v=1</code></pre>
+
+        <p>The logs are written to a file whose location depends on your platform; see <a
+                href="https://support.google.com/chrome/a/answer/6271282?hl=en"
+                title="Where to find Chrome logs">where to find Chrome logs</a>.</p>
+
+        <p>Then grep the Chrome logs for <code>SCTP_PACKET</code> and turn the result into a pcap
+            with <a href="https://www.wireshark.org/docs/man-pages/text2pcap.html"
+                    title="text2pcap manual page"><code>text2pcap</code></a>:</p>
+        <pre><code>text2pcap -D -u 1001,2001 -t %H:%M:%S.%f log.txt sctp.pcap</code></pre>
+    </div>
 
     <a href="https://github.com/webrtc/samples/tree/gh-pages/src/content/datachannel/basic"
        title="View source for this page on GitHub" id="viewSource">View source on GitHub</a>

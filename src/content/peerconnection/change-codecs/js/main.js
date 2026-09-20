@@ -47,10 +47,6 @@ const supportsSetCodecPreferences = window.RTCRtpTransceiver &&
 let localStream;
 let pc1;
 let pc2;
-const offerOptions = {
-  offerToReceiveAudio: 1,
-  offerToReceiveVideo: 1
-};
 
 function getName(pc) {
   return (pc === pc1) ? 'pc1' : 'pc2';
@@ -64,7 +60,7 @@ async function start() {
   console.log('Requesting local stream');
   startButton.disabled = true;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({audio: true, video: true});
+    const stream = await navigator.mediaDevices.getUserMedia({video: true});
     console.log('Received local stream');
     localVideo.srcObject = stream;
     localStream = stream;
@@ -73,9 +69,9 @@ async function start() {
     alert(`getUserMedia() error: ${e.name}`);
   }
   if (supportsSetCodecPreferences) {
-    const {codecs} = RTCRtpSender.getCapabilities('video');
+    const {codecs} = RTCRtpReceiver.getCapabilities('video');
     codecs.forEach(codec => {
-      if (['video/red', 'video/ulpfec', 'video/rtx'].includes(codec.mimeType)) {
+      if (['video/red', 'video/ulpfec', 'video/rtx', 'video/flexfec-03'].includes(codec.mimeType)) {
         return;
       }
       const option = document.createElement('option');
@@ -93,12 +89,8 @@ async function call() {
   console.log('Starting call');
   startTime = window.performance.now();
   const videoTracks = localStream.getVideoTracks();
-  const audioTracks = localStream.getAudioTracks();
   if (videoTracks.length > 0) {
     console.log(`Using video device: ${videoTracks[0].label}`);
-  }
-  if (audioTracks.length > 0) {
-    console.log(`Using audio device: ${audioTracks[0].label}`);
   }
   const configuration = {};
   console.log('RTCPeerConnection configuration:', configuration);
@@ -112,26 +104,11 @@ async function call() {
 
   localStream.getTracks().forEach(track => pc1.addTrack(track, localStream));
   console.log('Added local stream to pc1');
-  if (supportsSetCodecPreferences) {
-    const preferredCodec = codecPreferences.options[codecPreferences.selectedIndex];
-    if (preferredCodec.value !== '') {
-      const [mimeType, sdpFmtpLine] = preferredCodec.value.split(' ');
-      const {codecs} = RTCRtpSender.getCapabilities('video');
-      const selectedCodecIndex = codecs.findIndex(c => c.mimeType === mimeType && c.sdpFmtpLine === sdpFmtpLine);
-      const selectedCodec = codecs[selectedCodecIndex];
-      codecs.splice(selectedCodecIndex, 1);
-      codecs.unshift(selectedCodec);
-      console.log(codecs);
-      const transceiver = pc1.getTransceivers().find(t => t.sender && t.sender.track === localStream.getVideoTracks()[0]);
-      transceiver.setCodecPreferences(codecs);
-      console.log('Preferred video codec', selectedCodec);
-    }
-  }
   codecPreferences.disabled = true;
 
   try {
     console.log('pc1 createOffer start');
-    const offer = await pc1.createOffer(offerOptions);
+    const offer = await pc1.createOffer();
     await onCreateOfferSuccess(offer);
   } catch (e) {
     onCreateSessionDescriptionError(e);
@@ -161,9 +138,6 @@ async function onCreateOfferSuccess(desc) {
   }
 
   console.log('pc2 createAnswer start');
-  // Since the 'remote' side has no media stream we need
-  // to pass in the right constraints in order for it to
-  // accept the incoming offer of audio and video.
   try {
     const answer = await pc2.createAnswer();
     await onCreateAnswerSuccess(answer);
@@ -185,6 +159,21 @@ function onSetSessionDescriptionError(error) {
 }
 
 function gotRemoteStream(e) {
+  // Set codec preferences on the receiving side.
+  if (e.track.kind === 'video' && supportsSetCodecPreferences) {
+    const preferredCodec = codecPreferences.options[codecPreferences.selectedIndex];
+    if (preferredCodec.value !== '') {
+      const [mimeType, sdpFmtpLine] = preferredCodec.value.split(' ');
+      const {codecs} = RTCRtpReceiver.getCapabilities('video');
+      const selectedCodecIndex = codecs.findIndex(c => c.mimeType === mimeType && c.sdpFmtpLine === sdpFmtpLine);
+      const selectedCodec = codecs[selectedCodecIndex];
+      codecs.splice(selectedCodecIndex, 1);
+      codecs.unshift(selectedCodec);
+      e.transceiver.setCodecPreferences(codecs);
+      console.log('Receiver\'s preferred video codec', selectedCodec);
+    }
+  }
+
   if (remoteVideo.srcObject !== e.streams[0]) {
     remoteVideo.srcObject = e.streams[0];
     console.log('pc2 received remote stream');
@@ -215,7 +204,13 @@ async function onCreateAnswerSuccess(desc) {
         const codec = stats.get(stat.codecId);
         document.getElementById('actualCodec').innerText = 'Using ' + codec.mimeType +
             (codec.sdpFmtpLine ? ' ' + codec.sdpFmtpLine + ' ' : '') +
-            ', payloadType=' + codec.payloadType + '. Encoder: ' + stat.encoderImplementation;
+            ', payloadType=' + codec.payloadType + '.';
+        if (stat.encoderImplementation) {
+          document.getElementById('actualCodec').innerText += ' Encoder: "' + stat.encoderImplementation + '".';
+        }
+        if (stat.powerEfficientEncoder !== undefined) {
+          document.getElementById('actualCodec').innerText += ' Power efficient: ' + stat.powerEfficientEncoder + '.';
+        }
       });
     }, 1000);
   } catch (e) {

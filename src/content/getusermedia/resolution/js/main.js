@@ -12,8 +12,10 @@ const dimensions = document.querySelector('#dimensions');
 const video = document.querySelector('video');
 let stream;
 
-const vgaButton = document.querySelector('#vga');
 const qvgaButton = document.querySelector('#qvga');
+const p180Button = document.querySelector('#p180');
+const vgaButton = document.querySelector('#vga');
+const p360Button = document.querySelector('#p360');
 const hdButton = document.querySelector('#hd');
 const fullHdButton = document.querySelector('#full-hd');
 const cinemaFourKButton = document.querySelector('#cinemaFourK');
@@ -27,16 +29,27 @@ const widthInput = document.querySelector('div#width input');
 const widthOutput = document.querySelector('div#width span');
 const aspectLock = document.querySelector('#aspectlock');
 const sizeLock = document.querySelector('#sizelock');
+const pauseVideo = document.querySelector('#pausevideo');
+
+const videoSelect = document.querySelector('select#videoSource');
 
 let currentWidth = 0;
 let currentHeight = 0;
 
-vgaButton.onclick = () => {
-  getMedia(vgaConstraints);
+p180Button.onclick = () => {
+  getMedia(p180Constraints);
 };
 
 qvgaButton.onclick = () => {
   getMedia(qvgaConstraints);
+};
+
+p360Button.onclick = () => {
+  getMedia(p360Constraints);
+};
+
+vgaButton.onclick = () => {
+  getMedia(vgaConstraints);
 };
 
 hdButton.onclick = () => {
@@ -59,8 +72,24 @@ eightKButton.onclick = () => {
   getMedia(eightKConstraints);
 };
 
+pauseVideo.onchange = () => {
+  if (pauseVideo.checked) {
+    video.pause();
+  } else {
+    video.play();
+  }
+};
+
+const p180Constraints = {
+  video: {width: {exact: 320}, height: {exact: 180}}
+};
+
 const qvgaConstraints = {
   video: {width: {exact: 320}, height: {exact: 240}}
+};
+
+const p360Constraints = {
+  video: {width: {exact: 640}, height: {exact: 360}}
 };
 
 const vgaConstraints = {
@@ -87,6 +116,29 @@ const eightKConstraints = {
   video: {width: {exact: 7680}, height: {exact: 4320}}
 };
 
+function gotDevices(deviceInfos) {
+  // Handles being called several times to update labels. Preserve values.
+  while (videoSelect.firstChild) {
+    videoSelect.removeChild(videoSelect.firstChild);
+  }
+  for (let i = 0; i !== deviceInfos.length; ++i) {
+    const deviceInfo = deviceInfos[i];
+    const option = document.createElement('option');
+    option.value = deviceInfo.deviceId;
+    if (deviceInfo.kind === 'videoinput') {
+      option.text = deviceInfo.label || `camera ${videoSelect.length + 1}`;
+      videoSelect.appendChild(option);
+    }
+  }
+}
+
+function handleError(error) {
+  console.log('getUserMedia error: ', error.message, error.name);
+  errorMessage('getUserMedia', error.message, error.name);
+}
+
+navigator.mediaDevices.enumerateDevices().then(gotDevices, handleError);
+
 function gotStream(mediaStream) {
   stream = window.stream = mediaStream; // stream available to console
   video.srcObject = mediaStream;
@@ -102,6 +154,7 @@ function gotStream(mediaStream) {
     widthInput.value = constraints.width.min;
     widthOutput.textContent = constraints.width.min;
   }
+  navigator.mediaDevices.enumerateDevices().then(gotDevices, handleError);
 }
 
 function errorMessage(who, what) {
@@ -158,10 +211,7 @@ function constraintChange(e) {
       .then(() => {
         console.log('applyConstraint success');
         displayVideoDimensions('applyConstraints');
-      })
-      .catch(err => {
-        errorMessage('applyConstraints', err.name);
-      });
+      }, (err) => errorMessage('applyConstraints', err.name));
 }
 
 widthInput.onchange = constraintChange;
@@ -185,9 +235,10 @@ function getMedia(constraints) {
 
   clearErrorMessage();
   videoblock.style.display = 'none';
+  if (videoSelect.value !== '') {
+    constraints.video.deviceId = {exact: videoSelect.value};
+  }
+  console.log('getUserMedia constraints: ' + JSON.stringify(constraints));
   navigator.mediaDevices.getUserMedia(constraints)
-      .then(gotStream)
-      .catch(e => {
-        errorMessage('getUserMedia', e.message, e.name);
-      });
+      .then(gotStream, handleError);
 }

@@ -6,22 +6,21 @@
  *  tree.
  */
 /*
-/* eslint-env node, mocha */
+/* eslint-env node */
 
 'use strict';
 const webdriver = require('selenium-webdriver');
 const seleniumHelpers = require('../../../../../test/webdriver');
-const {expect} = require('chai');
 
 let driver;
 const path = '/src/content/getusermedia/resolution/index.html';
 const url = `${process.env.BASEURL ? process.env.BASEURL : ('file://' + process.cwd())}${path}`;
 
 describe('getUserMedia resolutions', () => {
-  before(() => {
-    driver = seleniumHelpers.buildDriver();
+  beforeAll(async () => {
+    driver = await seleniumHelpers.buildDriver();
   });
-  after(() => {
+  afterAll(() => {
     return driver.quit();
   });
 
@@ -30,6 +29,8 @@ describe('getUserMedia resolutions', () => {
   });
 
   const buttonToResolution = {
+    'p180': 320,
+    'p360': 640,
     'qvga': 320,
     'vga': 640,
     'hd': 1280,
@@ -49,7 +50,7 @@ describe('getUserMedia resolutions', () => {
         document.querySelector('video').readyState === HTMLMediaElement.HAVE_ENOUGH_DATA)
       );
       const width = await driver.findElement(webdriver.By.css('video')).getAttribute('videoWidth');
-      expect(width >>> 0).to.equal(resolution);
+      expect(width >>> 0).toBe(resolution);
     });
   });
 });

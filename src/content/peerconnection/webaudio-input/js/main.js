@@ -37,8 +37,7 @@ function start() {
   };
   navigator.mediaDevices
       .getUserMedia(constraints)
-      .then(handleSuccess)
-      .catch(handleFailure);
+      .then(handleSuccess, handleFailure);
   startButton.disabled = true;
   stopButton.disabled = false;
 }
@@ -58,31 +57,20 @@ function stop() {
 function handleSuccess(stream) {
   renderLocallyCheckbox.disabled = false;
   const audioTracks = stream.getAudioTracks();
-  if (audioTracks.length === 1) {
-    console.log('Got one audio track:', audioTracks);
-    const filteredStream = webAudio.applyFilter(stream);
-    const servers = null;
-    pc1 = new RTCPeerConnection(servers); // eslint-disable-line new-cap
-    console.log('Created local peer connection object pc1');
-    pc1.onicecandidate = e => onIceCandidate(pc1, e);
-    pc2 = new RTCPeerConnection(servers); // eslint-disable-line new-cap
-    console.log('Created remote peer connection object pc2');
-    pc2.onicecandidate = e => onIceCandidate(pc2, e);
-    pc2.ontrack = gotRemoteStream;
-    filteredStream.getTracks().forEach(track => pc1.addTrack(track, filteredStream));
-    pc1.createOffer().then(gotDescription1).catch(error => console.log(`createOffer failed: ${error}`));
+  console.log('Got one audio track:', audioTracks);
+  const filteredStream = webAudio.applyFilter(stream);
+  const servers = null;
+  pc1 = new RTCPeerConnection(servers); // eslint-disable-line new-cap
+  console.log('Created local peer connection object pc1');
+  pc1.onicecandidate = e => onIceCandidate(pc1, e);
+  pc2 = new RTCPeerConnection(servers); // eslint-disable-line new-cap
+  console.log('Created remote peer connection object pc2');
+  pc2.onicecandidate = e => onIceCandidate(pc2, e);
+  pc2.ontrack = gotRemoteStream;
+  filteredStream.getTracks().forEach(track => pc1.addTrack(track, filteredStream));
+  pc1.createOffer().then(gotDescription1, error => logError(`createOffer failed: ${error}`));
 
-    stream.oninactive = () => {
-      console.log('Stream inactive:', stream);
-      startButton.disabled = false;
-      stopButton.disabled = true;
-    };
-
-    localStream = stream;
-  } else {
-    logError('The media stream contains an invalid number of audio tracks.');
-    stream.getTracks().forEach(track => track.stop());
-  }
+  localStream = stream;
 }
 
 function handleFailure(error) {
@@ -97,8 +85,7 @@ function gotDescription1(desc) {
   pc1.setLocalDescription(desc);
   pc2.setRemoteDescription(desc);
   pc2.createAnswer()
-      .then(gotDescription2)
-      .catch(error => logError(`createAnswer failed: ${error}`));
+      .then(gotDescription2, error => logError(`createAnswer failed: ${error}`));
 }
 
 function gotDescription2(desc) {
@@ -124,7 +111,7 @@ function getName(pc) {
 function onIceCandidate(pc, event) {
   getOtherPc(pc)
       .addIceCandidate(event.candidate)
-      .then(() => onAddIceCandidateSuccess(pc), err => onAddIceCandidateError(pc, err));
+      .then(() => onAddIceCandidateSuccess(pc), (err) => onAddIceCandidateError(pc, err));
   console.log(`${getName(pc)} ICE candidate:\n${event.candidate ? event.candidate.candidate : '(null)'}`);
 }
 
@@ -132,8 +119,8 @@ function onAddIceCandidateSuccess() {
   console.log('AddIceCandidate success.');
 }
 
-function onAddIceCandidateError(error) {
-  logError(`Failed to add Ice Candidate: ${error.toString()}`);
+function onAddIceCandidateError(pc, error) {
+  logError(`Failed to add Ice Candidate to ${getName(pc)}: ${error.toString()}`);
 }
 
 function handleKeyDown() {

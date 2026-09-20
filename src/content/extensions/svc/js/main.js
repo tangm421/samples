@@ -45,6 +45,37 @@ const scalabilityMode = document.querySelector('#scalabilityMode');
 const supportsSetCodecPreferences = window.RTCRtpTransceiver &&
   'setCodecPreferences' in window.RTCRtpTransceiver.prototype;
 
+const scalabilityModes = [
+  'L1T1',
+  'L1T2',
+  'L1T3',
+  'L2T1',
+  'L2T2',
+  'L2T3',
+  'L3T1',
+  'L3T2',
+  'L3T3',
+  'L2T1h',
+  'L2T2h',
+  'L2T3h',
+  'S2T1',
+  'S2T2',
+  'S2T3',
+  'S2T1h',
+  'S2T2h',
+  'S2T3h',
+  'S3T1',
+  'S3T2',
+  'S3T3',
+  'S3T1h',
+  'S3T2h',
+  'S3T3h',
+  'L2T2_KEY',
+  'L2T3_KEY',
+  'L3T2_KEY',
+  'L3T3_KEY'
+];
+
 let localStream;
 let pc1;
 let pc2;
@@ -84,9 +115,9 @@ async function start() {
     alert(`getUserMedia() error: ${e.name}`);
   }
   if (supportsSetCodecPreferences) {
-    const {codecs} = RTCRtpSender.getCapabilities('video');
+    const {codecs} = RTCRtpReceiver.getCapabilities('video');
     codecs.forEach(codec => {
-      if (['video/red', 'video/ulpfec', 'video/rtx'].includes(codec.mimeType)) {
+      if (['video/red', 'video/ulpfec', 'video/rtx', 'video/flexfec-03'].includes(codec.mimeType)) {
         return;
       }
       const option = document.createElement('option');
@@ -94,10 +125,8 @@ async function start() {
       option.innerText = option.value;
       codecPreferences.appendChild(option);
     });
-    codecPreferences.addEventListener('change', (event) => {
-      const [mimeType, sdpFmtpLine] = event.target.value.split(' ');
-      const selectedCodecIndex = codecs.findIndex(c => c.mimeType === mimeType && c.sdpFmtpLine === sdpFmtpLine);
-      const selectedCodec = codecs[selectedCodecIndex];
+    codecPreferences.addEventListener('change', async (event) => {
+      const [mimeType] = event.target.value.split(' ');
       while (scalabilityMode.firstChild) {
         scalabilityMode.firstChild.remove();
       }
@@ -105,13 +134,31 @@ async function start() {
       option.value = '';
       option.innerText = 'NONE';
       scalabilityMode.appendChild(option);
-      if (selectedCodec.scalabilityModes) {
-        for (const mode of selectedCodec.scalabilityModes) {
+
+      const capabilityPromises = [];
+      for (const mode of scalabilityModes) {
+        capabilityPromises.push(navigator.mediaCapabilities.encodingInfo({
+          type: 'webrtc',
+          video: {
+            contentType: mimeType,
+            width: 640,
+            height: 480,
+            bitrate: 10000,
+            framerate: 29.97,
+            scalabilityMode: mode
+          }}));
+      }
+      const capabilityResults = await Promise.all(capabilityPromises);
+      for (let i = 0; i < scalabilityModes.length; ++i) {
+        if (capabilityResults[i].supported) {
           const option = document.createElement('option');
-          option.value = mode;
-          option.innerText = mode;
+          option.value = scalabilityModes[i];
+          option.innerText = scalabilityModes[i];
           scalabilityMode.appendChild(option);
         }
+      }
+
+      if (scalabilityMode.childElementCount > 1) {
         scalabilityMode.disabled = false;
       } else {
         scalabilityMode.disabled = true;
@@ -168,21 +215,6 @@ async function call() {
     }
   });
   console.log('Added local stream to pc1');
-  if (supportsSetCodecPreferences) {
-    const preferredCodec = codecPreferences.options[codecPreferences.selectedIndex];
-    if (preferredCodec.value !== '') {
-      const [mimeType, sdpFmtpLine] = preferredCodec.value.split(' ');
-      const {codecs} = RTCRtpSender.getCapabilities('video');
-      const selectedCodecIndex = codecs.findIndex(c => c.mimeType === mimeType && c.sdpFmtpLine === sdpFmtpLine);
-      const selectedCodec = codecs[selectedCodecIndex];
-      codecs.splice(selectedCodecIndex, 1);
-      codecs.unshift(selectedCodec);
-      console.log(codecs);
-      const transceiver = pc1.getTransceivers().find(t => t.sender && t.sender.track === localStream.getVideoTracks()[0]);
-      transceiver.setCodecPreferences(codecs);
-      console.log('Preferred video codec', selectedCodec);
-    }
-  }
   codecPreferences.disabled = true;
   scalabilityMode.disabled = true;
 
@@ -245,6 +277,19 @@ function gotRemoteStream(e) {
   if (remoteVideo.srcObject !== e.streams[0]) {
     remoteVideo.srcObject = e.streams[0];
     console.log('pc2 received remote stream');
+  }
+  if (supportsSetCodecPreferences) {
+    const preferredCodec = codecPreferences.options[codecPreferences.selectedIndex];
+    if (preferredCodec.value !== '') {
+      const [mimeType, sdpFmtpLine] = preferredCodec.value.split(' ');
+      const {codecs} = RTCRtpReceiver.getCapabilities('video');
+      const selectedCodecIndex = codecs.findIndex(c => c.mimeType === mimeType && c.sdpFmtpLine === sdpFmtpLine);
+      const selectedCodec = codecs[selectedCodecIndex];
+      codecs.splice(selectedCodecIndex, 1);
+      codecs.unshift(selectedCodec);
+      e.transceiver.setCodecPreferences(codecs);
+      console.log('Preferred video codec', selectedCodec);
+    }
   }
 }
 
